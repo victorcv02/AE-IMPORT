@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión Comercial - Mi Tienda Nube</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .tab-content { display: none !important; }
+        .tab-content.active { display: block !important; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 min-h-screen">
+
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[100] px-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full space-y-6">
+            <div class="text-center space-y-2">
+                <span class="text-4xl">☁️</span>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">ControlTienda Nube</h2>
+                <p class="text-sm text-slate-500">Ingresa tus credenciales autorizadas</p>
+            </div>
+            
+            <div id="login-error" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-2.5 rounded-lg">
+                ❌ Correo o contraseña incorrectos. Intentelo nuevamente.
+            </div>
+
+            <form id="form-login" onsubmit="ejecutarLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1 tracking-wide">Correo Electrónico</label>
+                    <input type="email" id="login-email" required placeholder="tu-correo@gmail.com" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1 tracking-wide">Contraseña</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 text-sm">
+                </div>
+                <button type="submit" id="btn-login-text" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md tracking-wide mt-2">
+                    🔑 Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        <nav class="bg-indigo-700 text-white shadow-md sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">☁️</span>
+                        <span class="font-bold text-xl tracking-tight">ControlTienda Nube v2.5</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="hidden md:flex space-x-2 overflow-x-auto">
+                            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="tab-btn px-3 py-2 rounded-md text-sm font-medium bg-indigo-800 text-white whitespace-nowrap">📊 Dashboard</button>
+                            <button onclick="switchTab('productos')" id="btn-productos" class="tab-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-600 transition whitespace-nowrap">📦 Inventario</button>
+                            <button onclick="switchTab('ventas')" id="btn-ventas" class="tab-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-600 transition whitespace-nowrap">🛒 Nueva Venta</button>
+                            <button onclick="switchTab('reportes')" id="btn-reportes" class="tab-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-600 transition whitespace-nowrap">📄 Historial y PDF</button>
+                        </div>
+                        <button onclick="ejecutarCerrarSesion()" class="bg-indigo-900 hover:bg-indigo-950 text-xs font-bold px-3 py-2 rounded-lg transition">🚪 Salir</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="bg-indigo-600 p-2 flex justify-around md:hidden shadow-inner border-t border-indigo-500">
+            <button onclick="switchTab('dashboard')" class="text-white text-xs font-bold flex flex-col items-center gap-0.5"><span>📊</span>Dash</button>
+            <button onclick="switchTab('productos')" class="text-white text-xs font-bold flex flex-col items-center gap-0.5"><span>📦</span>Inventario</button>
+            <button onclick="switchTab('ventas')" class="text-white text-xs font-bold flex flex-col items-center gap-0.5"><span>🛒</span>Vender</button>
+            <button onclick="switchTab('reportes')" class="text-white text-xs font-bold flex flex-col items-center gap-0.5"><span>📄</span>Historial</button>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            
+            <div id="status-conexion" class="mb-4 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 w-fit flex items-center gap-1.5">
+                🟢 Conectado con sesión segura en la nube
+            </div>
+            
+            <div id="dashboard" class="tab-content active space-y-6">
+                <h1 class="text-2xl font-bold text-slate-900 border-b pb-2">Resumen General de Hoy</h1>
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Ingresos de Hoy</p>
+                            <p id="dash-ingresos" class="text-2xl font-bold text-emerald-600">S/ 0.00</p>
+                        </div>
+                        <span class="text-3xl bg-emerald-50 p-3 rounded-lg text-emerald-600">💰</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Ventas Realizadas</p>
+                            <p id="dash-ventas-count" class="text-2xl font-bold text-indigo-600">0</p>
+                        </div>
+                        <span class="text-3xl bg-indigo-50 p-3 rounded-lg text-indigo-600">🛒</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Productos Registrados</p>
+                            <p id="dash-productos-count" class="text-2xl font-bold text-slate-700">0</p>
+                        </div>
+                        <span class="text-3xl bg-slate-50 p-3 rounded-lg text-slate-600">📦</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Alertas de Stock</p>
+                            <p id="dash-alertas-count" class="text-2xl font-bold text-rose-600">0</p>
+                        </div>
+                        <span class="text-3xl bg-rose-50 p-3 rounded-lg text-rose-600">⚠️</span>
+                    </div>
+                </div>
+
+                <div id="panel-alertas" class="bg-rose-50 border border-rose-200 rounded-xl p-5 hidden">
+                    <h3 class="text-rose-800 font-semibold text-lg mb-2 flex items-center">🚨 ¡Atención! Productos con Stock Crítico</h3>
+                    <ul id="lista-alertas" class="list-disc list-inside text-rose-700 text-sm space-y-1"></ul>
+                </div>
+            </div>
+
+            <div id="productos" class="tab-content space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-2">
+                    <h1 class="text-2xl font-bold text-slate-900">Gestión de Inventario (Nube)</h1>
+                    <input type="text" id="buscar-producto-inv" oninput="listarProductosInventario()" placeholder="🔍 Buscar producto por nombre..." class="px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-80 bg-white">
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">📝 Registrar / Editar Producto</h3>
+                        <form id="form-producto" onsubmit="guardarProducto(event)" class="space-y-4">
+                            <input type="hidden" id="prod-id">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre del Producto</label>
+                                <input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Precio Normal (S/)</label>
+                                    <input type="number" id="prod-precio" step="0.01" min="0" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Stock Inicial</label>
+                                    <input type="number" id="prod-stock" min="0" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
+                                </div>
+                            </div>
+                            
+                            <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 space-y-3">
+                                <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide">⚙️ Configuración Por Mayor (Opcional)</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Precio Mayorista (S/)</label>
+                                        <input type="number" id="prod-precio-mayor" step="0.01" min="0" placeholder="Ej: 2.00" class="w-full px-2 py-1.5 border rounded-md focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cant. Mínima</label>
+                                        <input type="number" id="prod-cant-mayor" min="2" placeholder="Ej: 6" class="w-full px-2 py-1.5 border rounded-md focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Stock Mínimo (Alerta)</label>
+                                <input type="number" id="prod-minimo" min="0" value="5" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
+                            </div>
+                            <div class="flex space-x-2 pt-2">
+                                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition shadow-sm">💾 Guardar Producto</button>
+                                <button type="button" onclick="limpiarFormProducto()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-3 py-2 rounded-lg transition">Limpiar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        <th class="px-5 py-3">Producto</th>
+                                        <th class="px-5 py-3 text-right">Precio Reg.</th>
+                                        <th class="px-5 py-3 text-right text-indigo-600">P. Mayorista</th>
+                                        <th class="px-5 py-3 text-center">Stock</th>
+                                        <th class="px-5 py-3 text-center">Estado</th>
+                                        <th class="px-5 py-3 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-inventario" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ventas" class="tab-content space-y-6">
+                <h1 class="text-2xl font-bold text-slate-900 border-b pb-2">Módulo de Ventas (Punto de Venta)</h1>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 h-fit">
+                        <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">🔍 Buscar Artículo</h3>
+                        <div>
+                            <input type="text" id="buscar-venta" oninput="filtrarProductosVenta()" placeholder="Escribe el nombre del producto..." class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 mb-3">
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Selecciona el producto filtrado</label>
+                            <select id="select-producto-venta" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cantidad</label>
+                                <input type="number" id="venta-cantidad" value="1" min="1" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="agregarAlCarrito()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-lg transition shadow-sm flex justify-center items-center gap-1">➕ Añadir</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between">
+                        <div>
+                            <div class="p-4 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                                <h3 class="font-bold text-slate-700">🛒 Lista de la Venta Actual</h3>
+                                <button onclick="vaciarCarrito()" class="text-xs text-rose-600 hover:underline font-medium">Vaciar lista</button>
+                            </div>
+                            <div class="overflow-x-auto max-h-72">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                            <th class="px-4 py-2">Ítem</th>
+                                            <th class="px-4 py-2 text-right">Precio Cobrado</th>
+                                            <th class="px-4 py-2 text-center">Cant.</th>
+                                            <th class="px-4 py-2 text-right">Subtotal</th>
+                                            <th class="px-4 py-2 text-center">Quitar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabla-carrito" class="divide-y divide-slate-100 text-sm"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="p-6 bg-slate-50 border-t border-slate-100 space-y-4">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Método de Pago</label>
+                                    <select id="venta-pago" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm w-48">
+                                        <option value="Efectivo">💵 Efectivo</option>
+                                        <option value="Yape/Plin">📱 Yape / Plin</option>
+                                        <option value="Tarjeta">💳 Tarjeta Bancaria</option>
+                                        <option value="Transferencia">🏦 Transferencia</option>
+                                    </select>
+                                </div>
+                                <div class="text-right w-full md:w-auto">
+                                    <p class="text-sm text-slate-500 font-medium">TOTAL A PAGAR</p>
+                                    <p id="carrito-total" class="text-3xl font-black text-indigo-700">S/ 0.00</p>
+                                </div>
+                            </div>
+                            <button onclick="procesarVenta()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition text-center shadow-md text-lg tracking-wide">🚀 Confirmar y Registrar Venta</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportes" class="tab-content space-y-6">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between border-b pb-2 gap-4">
+                    <h1 class="text-2xl font-bold text-slate-900">Historial Agrupado por Fechas (Nube)</h1>
+                    <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-sm">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filtrar por Período</label>
+                            <select id="filtro-periodo" onchange="actualizarFiltrosFechas()" class="border rounded px-2 py-1 bg-slate-50">
+                                <option value="todos">📋 Mostrar Todo el Historial</option>
+                                <option value="hoy">Hoy</option>
+                                <option value="semana">Esta Semana</option>
+                                <option value="mes">Este Mes</option>
+                                <option value="personalizado">Rango Personalizado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Desde</label>
+                            <input type="date" id="filtro-desde" onchange="listarVentas()" class="border rounded px-2 py-1 bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hasta</label>
+                            <input type="date" id="filtro-hasta" onchange="listarVentas()" class="border rounded px-2 py-1 bg-slate-50">
+                        </div>
+                        <div class="flex items-end pt-4">
+                            <button onclick="descargarPDF()" class="bg-rose-600 hover:bg-rose-700 text-white font-medium px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">📄 Descargar PDF</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-around items-center text-center gap-4">
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold uppercase">Total Filtrado / Recaudado</p>
+                        <p id="rep-total-monto" class="text-2xl font-black text-indigo-600">S/ 0.00</p>
+                    </div>
+                    <div class="w-px h-10 bg-slate-200 hidden md:block"></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold uppercase">Transacciones</p>
+                        <p id="rep-total-ventas" class="text-2xl font-bold text-slate-700">0</p>
+                    </div>
+                    <div class="w-px h-10 bg-slate-200 hidden md:block"></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold uppercase">Efectivo</p>
+                        <p id="rep-efectivo" class="text-sm font-semibold text-slate-600">S/ 0.00</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold uppercase">Yape / Plin</p>
+                        <p id="rep-yape" class="text-sm font-semibold text-slate-600">S/ 0.00</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold uppercase">Tarjetas / Otros</p>
+                        <p id="rep-tarjeta" class="text-sm font-semibold text-slate-600">S/ 0.00</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    <th class="px-5 py-3 w-10"></th>
+                                    <th class="px-5 py-3">Fecha Calendario</th>
+                                    <th class="px-5 py-3 text-center">Artículos Vendidos</th>
+                                    <th class="px-5 py-3 text-right">Total Recaudado (S/)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-historial" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Supabase conectada a tu base de datos real
+        const SUPABASE_URL = "https://cstgkmmofjhzqdadsgic.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_vZgIBF8BQXeTJerqpTSVPA_GfAwlPox";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let productos = [];
+        let ventas = [];
+        let carrito = [];
+
+        // --- SISTEMA DE AUTENTICACIÓN (LOGIN) ---
+        async function ejecutarLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            const btnText = document.getElementById('btn-login-text');
+
+            errorEl.classList.add('hidden');
+            btnText.innerText = "⏳ Validando credenciales...";
+            btnText.disabled = true;
+
+            // Intentar login usando el sistema nativo de Supabase Auth
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                errorEl.classList.remove('hidden');
+                btnText.innerText = "🔑 Iniciar Sesión";
+                btnText.disabled = false;
+                return;
+            }
+
+            // Si es correcto, ocultamos el login, mostramos la app y descargamos datos
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            
+            await arrancarSistemaConectado();
+        }
+
+        async function arrancarSistemaConectado() {
+            try {
+                await descargarTodoDeLaNube();
+                cargarDashboard();
+            } catch (err) {
+                console.error(err);
+                alert("Error al sincronizar las tablas de la nube.");
+            }
+        }
+
+        async function verificarSesionActiva() {
+            // Revisa si el usuario ya inició sesión antes para saltarse el Login
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (session) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                await arrancarSistemaConectado();
+            }
+        }
+
+        async function ejecutarCerrarSesion() {
+            if(confirm("¿Deseas cerrar sesión en este dispositivo?")) {
+                await _supabase.auth.signOut();
+                window.location.reload();
+            }
+        }
+
+        // --- LÓGICA DE SINCRONIZACIÓN DE TABLAS ---
+        async function descargarTodoDeLaNube() {
+            const { data: dataProds, error: errProds } = await _supabase.from('productos').select('*');
+            if (errProds) throw errProds;
+            productos = dataProds.map(p => ({
+                id: p.id,
+                nombre: p.nombre,
+                precio: parseFloat(p.precio),
+                stock: parseInt(p.stock),
+                minimo: parseInt(p.minimo),
+                precioMayor: p.precio_mayor ? parseFloat(p.precio_mayor) : null,
+                cantMayor: p.cant_mayor ? parseInt(p.cant_mayor) : null
+            }));
+
+            const { data: dataVentas, error: errVentas } = await _supabase.from('ventas').select('*');
+            if (errVentas) throw errVentas;
+            ventas = dataVentas.map(v => ({
+                id: v.id,
+                fechaCompleta: v.fecha_completa,
+                fechaFiltro: v.fecha_filtro,
+                items: v.items,
+                metodoPago: v.metodo_pago,
+                total: parseFloat(v.total)
+            }));
+        }
+
+        function obtenerFechaLocalPeru() {
+            const hoy = new Date();
+            const yyyy = hoy.getFullYear();
+            const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+            const dd = String(hoy.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.style.setProperty('display', 'none', 'important');
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-indigo-800', 'text-white');
+                el.classList.add('hover:bg-indigo-600');
+            });
+
+            const targetTab = document.getElementById(tabId);
+            if(targetTab) {
+                targetTab.style.setProperty('display', 'block', 'important');
+                targetTab.classList.add('active');
+            }
+            const targetBtn = document.getElementById(`btn-${tabId}`);
+            if(targetBtn) {
+                targetBtn.classList.add('bg-indigo-800', 'text-white');
+                targetBtn.classList.remove('hover:bg-indigo-600');
+            }
+
+            if(tabId === 'dashboard') cargarDashboard();
+            if(tabId === 'productos') { listarProductosInventario(); limpiarFormProducto(); }
+            if(tabId === 'ventas') { filtrarProductosVenta(); actualizarVistaCarrito(); }
+            if(tabId === 'reportes') { listarVentas(); }
+        }
+
+        // --- INVENTARIO ---
+        function listarProductosInventario() {
+            const tbody = document.getElementById('tabla-inventario');
+            const busqueda = document.getElementById('buscar-producto-inv').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            const productosFiltrados = productos.filter(p => p.nombre.toLowerCase().includes(busqueda));
+
+            if(productosFiltrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-5 text-slate-400">No hay productos.</td></tr>`;
+                return;
+            }
+
+            productosFiltrados.forEach(p => {
+                const esCritico = p.stock <= p.minimo;
+                const badge = esCritico 
+                    ? `<span class="px-2 py-1 text-xs font-semibold bg-rose-100 text-rose-700 rounded-full">Por reponer</span>`
+                    : `<span class="px-2 py-1 text-xs font-semibold bg-emerald-100 text-emerald-700 rounded-full">Ok</span>`;
+                
+                const infoMayorista = (p.precioMayor && p.cantMayor) 
+                    ? `<span class="text-indigo-600 font-bold">S/ ${p.precioMayor.toFixed(2)}</span> <span class="text-[11px] text-slate-400">(x${p.cantMayor})</span>`
+                    : `<span class="text-slate-300">—</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-3 font-semibold text-slate-700">${p.nombre}</td>
+                        <td class="px-5 py-3 text-right font-medium text-slate-600">S/ ${p.precio.toFixed(2)}</td>
+                        <td class="px-5 py-3 text-right">${infoMayorista}</td>
+                        <td class="px-5 py-3 text-center font-bold ${esCritico ? 'text-rose-600' : 'text-slate-600'}">${p.stock}</td>
+                        <td class="px-5 py-3 text-center">${badge}</td>
+                        <td class="px-5 py-3 text-center space-x-1">
+                            <button onclick="editarProducto('${p.id}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-xs bg-indigo-50 px-2 py-1 rounded">Editar</button>
+                            <button onclick="eliminarProducto('${p.id}')" class="text-rose-600 hover:text-rose-900 font-medium text-xs bg-rose-50 px-2 py-1 rounded">Borrar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function guardarProducto(e) {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value || Date.now().toString();
+            const nombre = document.getElementById('prod-nombre').value.trim();
+            const precio = parseFloat(document.getElementById('prod-precio').value);
+            const stock = parseInt(document.getElementById('prod-stock').value);
+            const minimo = parseInt(document.getElementById('prod-minimo').value);
+            
+            const precioMayorVal = document.getElementById('prod-precio-mayor').value;
+            const cantMayorVal = document.getElementById('prod-cant-mayor').value;
+            const precio_mayor = precioMayorVal ? parseFloat(precioMayorVal) : null;
+            const cant_mayor = cantMayorVal ? parseInt(cantMayorVal) : null;
+
+            const { error } = await _supabase.from('productos').upsert({
+                id, nombre, precio, stock, minimo, precio_mayor, cant_mayor
+            });
+
+            if (error) { alert('Error: ' + error.message); return; }
+
+            await descargarTodoDeLaNube();
+            listarProductosInventario();
+            limpiarFormProducto();
+            alert('¡Producto guardado en la nube!');
+        }
+
+        function editarProducto(id) {
+            const p = productos.find(prod => prod.id === id);
+            if(!p) return;
+            document.getElementById('prod-id').value = p.id;
+            document.getElementById('prod-nombre').value = p.nombre;
+            document.getElementById('prod-precio').value = p.precio;
+            document.getElementById('prod-stock').value = p.stock;
+            document.getElementById('prod-minimo').value = p.minimo;
+            document.getElementById('prod-precio-mayor').value = p.precioMayor || '';
+            document.getElementById('prod-cant-mayor').value = p.cantMayor || '';
+        }
+
+        async function eliminarProducto(id) {
+            if(confirm('¿Seguro que deseas borrar este producto de la nube?')) {
+                const { error } = await _supabase.from('productos').delete().eq('id', id);
+                if (error) { alert('Error: ' + error.message); return; }
+                await descargarTodoDeLaNube();
+                listarProductosInventario();
+            }
+        }
+
+        function limpiarFormProducto() {
+            document.getElementById('prod-id').value = '';
+            document.getElementById('form-producto').reset();
+        }
+
+        // --- PUNTO DE VENTA ---
+        function filtrarProductosVenta() {
+            const busqueda = document.getElementById('buscar-venta').value.toLowerCase();
+            const select = document.getElementById('select-producto-venta');
+            select.innerHTML = '';
+
+            const filtrados = productos.filter(p => p.nombre.toLowerCase().includes(busqueda) && p.stock > 0);
+
+            if(filtrados.length === 0) {
+                select.innerHTML = `<option value="">❌ Sin stock o no encontrado</option>`;
+                return;
+            }
+
+            filtrados.forEach(p => {
+                let txtMayor = (p.precioMayor && p.cantMayor) ? ` [Mayorista: S/ ${p.precioMayor} desde x${p.cantMayor}]` : '';
+                select.innerHTML += `<option value="${p.id}">${p.nombre} - S/ ${p.precio.toFixed(2)}${txtMayor} (Stock: ${p.stock})</option>`;
+            });
+        }
+
+        function agregarAlCarrito() {
+            const id = document.getElementById('select-producto-venta').value;
+            const cantidad = parseInt(document.getElementById('venta-cantidad').value);
+
+            if(!id) return;
+            const prod = productos.find(p => p.id === id);
+            if(!prod) return;
+
+            if(cantidad > prod.stock) {
+                alert(`Stock insuficiente. Disponible: ${prod.stock}`);
+                return;
+            }
+
+            const itemCarrito = carrito.find(item => item.id === id);
+            if(itemCarrito) {
+                if((itemCarrito.cantidad + cantidad) > prod.stock) { alert('Supera el stock.'); return; }
+                itemCarrito.cantidad += cantidad;
+            } else {
+                carrito.push({
+                    id: prod.id,
+                    nombre: prod.nombre,
+                    precioBase: prod.precio,
+                    precioMayor: prod.precioMayor,
+                    cantMayor: prod.cantMayor,
+                    cantidad: cantidad
+                });
+            }
+            actualizarVistaCarrito();
+        }
+
+        function actualizarVistaCarrito() {
+            const tbody = document.getElementById('tabla-carrito');
+            const totalEl = document.getElementById('carrito-total');
+            tbody.innerHTML = '';
+            let totalGeneral = 0;
+
+            carrito.forEach((item, index) => {
+                const aplicaMayorista = (item.precioMayor && item.cantMayor && item.cantidad >= item.cantMayor);
+                const precioUnidadAplicado = aplicaMayorista ? item.precioMayor : item.precioBase;
+                const subtotalItem = item.cantidad * precioUnidadAplicado;
+                
+                totalGeneral += subtotalItem;
+                item.precioCobrado = precioUnidadAplicado;
+                item.subtotal = subtotalItem;
+                item.esMayorista = aplicaMayorista;
+
+                const tagMayorista = aplicaMayorista ? `<br><span class="inline-block text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded mt-0.5">¡Por Mayor!</span>` : '';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-4 py-2 font-medium">${item.nombre}${tagMayorista}</td>
+                        <td class="px-4 py-2 text-right">
+                            <span class="${aplicaMayorista ? 'line-through text-slate-400 text-xs mr-1' : ''}">S/ ${item.precioBase.toFixed(2)}</span>
+                            ${aplicaMayorista ? `<span class="text-emerald-600 font-bold">S/ ${item.precioMayor.toFixed(2)}</span>` : ''}
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            <input type="number" min="1" value="${item.cantidad}" onchange="actualizarCantidadCarrito(${index}, this.value)" class="w-16 border rounded text-center py-0.5 bg-white font-semibold">
+                        </td>
+                        <td class="px-4 py-2 text-right font-bold text-slate-900">S/ ${subtotalItem.toFixed(2)}</td>
+                        <td class="px-4 py-2 text-center"><button onclick="quitarDelCarrito(${index})" class="text-rose-500 font-bold text-lg">×</button></td>
+                    </tr>
+                `;
+            });
+            totalEl.innerText = `S/ ${totalGeneral.toFixed(2)}`;
+        }
+
+        function actualizarCantidadCarrito(index, nuevaCantidad) {
+            const cant = parseInt(nuevaCantidad);
+            if (isNaN(cant) || cant < 1) { actualizarVistaCarrito(); return; }
+            const item = carrito[index];
+            const prod = productos.find(p => p.id === item.id);
+            if (prod && cant > prod.stock) { alert(`Máximo disponible: ${prod.stock}`); actualizarVistaCarrito(); return; }
+            item.shadowCantidad = cant; item.cantidad = cant;
+            actualizarVistaCarrito();
+        }
+
+        function quitarDelCarrito(index) { carrito.splice(index, 1); actualizarVistaCarrito(); }
+        function vaciarCarrito() { carrito = []; actualizarVistaCarrito(); }
+
+        async function procesarVenta() {
+            if(carrito.length === 0) return;
+
+            const actualizacionesStock = [];
+            for (let item of carrito) {
+                const prod = productos.find(p => p.id === item.id);
+                if (!prod || prod.stock < item.cantidad) { alert(`Insuficiente stock para ${item.nombre}`); return; }
+                prod.stock -= item.cantidad;
+                actualizacionesStock.push(_supabase.from('productos').update({ stock: prod.stock }).eq('id', prod.id));
+            }
+
+            await Promise.all(actualizacionesStock);
+
+            const ahora = new Date();
+            const itemsVenta = carrito.map(i => ({
+                id: i.id, nombre: i.nombre, precioCobrado: i.precioCobrado, cantidad: i.cantidad, subtotal: i.subtotal, esMayorista: i.esMayorista
+            }));
+
+            const nuevaVenta = {
+                id: Date.now().toString(),
+                fecha_completa: ahora.toLocaleString('es-PE', { hour12: false }), 
+                fecha_filtro: obtenerFechaLocalPeru(),
+                items: itemsVenta,
+                metodo_pago: document.getElementById('venta-pago').value,
+                total: itemsVenta.reduce((sum, i) => sum + i.subtotal, 0)
+            };
+
+            const { error: errVenta } = await _supabase.from('ventas').insert(nuevaVenta);
+            if (errVenta) { alert("Error: " + errVenta.message); return; }
+
+            alert('¡Venta registrada con éxito!');
+            vaciarCarrito();
+            await descargarTodoDeLaNube();
+            filtrarProductosVenta();
+            cargarDashboard();
+        }
+
+        // --- REPORTES ---
+        function actualizarFiltrosFechas() {
+            const periodo = document.getElementById('filtro-periodo').value;
+            const desdeInput = document.getElementById('filtro-desde');
+            const hastaInput = document.getElementById('filtro-hasta');
+            const hoyStr = obtenerFechaLocalPeru();
+
+            if (periodo === 'todos') { desdeInput.value = ''; hastaInput.value = ''; } 
+            else if (periodo === 'hoy') { desdeInput.value = hoyStr; hastaInput.value = hoyStr; } 
+            else if (periodo === 'semana') {
+                const hoy = new Date();
+                const lunes = new Date(hoy.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay() === 0 ? -6 : 1)));
+                desdeInput.value = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+                hastaInput.value = hoyStr;
+            } else if (periodo === 'mes') {
+                const hoy = new Date();
+                desdeInput.value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
+                hastaInput.value = hoyStr;
+            }
+
+            desdeInput.disabled = (periodo !== 'personalizado');
+            hastaInput.disabled = (periodo !== 'personalizado');
+            listarVentas();
+        }
+
+        function toggleDetalleDia(fechaId) {
+            const filaDetalle = document.getElementById(`detalle-${fechaId}`);
+            const flecha = document.getElementById(`flecha-${fechaId}`);
+            if (filaDetalle.classList.contains('hidden')) {
+                filaDetalle.classList.remove('hidden'); flecha.innerText = '▼';
+            } else {
+                filaDetalle.classList.add('hidden'); flecha.innerText = '▶';
+            }
+        }
+
+        function listarVentas() {
+            const tbody = document.getElementById('tabla-historial');
+            const periodo = document.getElementById('filtro-periodo').value;
+            const desdeVal = document.getElementById('filtro-desde').value;
+            const hastaVal = document.getElementById('filtro-hasta').value;
+            tbody.innerHTML = '';
+            
+            const filtradas = ventas.filter(v => {
+                if (periodo === 'todos') return true;
+                if (!desdeVal || !hastaVal) return true;
+                return v.fechaFiltro >= desdeVal && v.fechaFiltro <= hastaVal;
+            });
+
+            let totalMontoGlobal = 0, efec = 0, yape = 0, tarjeta = 0, transaccionesCount = filtradas.length;
+
+            if (filtradas.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center p-5 text-slate-400">No se encontraron ventas.</td></tr>`;
+                ajustarContadoresCard(0, 0, 0, 0, 0); return;
+            }
+
+            const gruposPorDia = {};
+            filtradas.forEach(v => {
+                totalMontoGlobal += v.total;
+                if(v.metodoPago === 'Efectivo') efec += v.total;
+                else if(v.metodoPago === 'Yape/Plin') yape += v.total;
+                else tarjeta += v.total;
+
+                const fDía = v.fechaFiltro;
+                if (!gruposPorDia[fDía]) gruposPorDia[fDía] = { transacciones: [], totalDinero: 0, totalArticulos: 0 };
+                
+                let articulosEnVenta = v.items ? v.items.reduce((s, i) => s + i.cantidad, 0) : 0;
+                gruposPorDia[fDía].transacciones.push(v);
+                gruposPorDia[fDía].totalDinero += v.total;
+                gruposPorDia[fDía].totalArticulos += articulosEnVenta;
+            });
+
+            const diasOrdenados = Object.keys(gruposPorDia).sort((a,b) => b.localeCompare(a));
+
+            diasOrdenados.forEach((fechaStr, index) => {
+                const infoGrupo = gruposPorDia[fechaStr];
+                const parts = fechaStr.split('-');
+                const fechaFormateada = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fechaStr;
+
+                let subTablaHTML = `
+                    <div class="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 my-2">
+                        <table class="w-full text-left text-xs text-slate-700">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-indigo-200">
+                                    <th class="py-1">Hora</th>
+                                    <th class="py-1">Artículos Desglosados</th>
+                                    <th class="py-1 text-center">Pago</th>
+                                    <th class="py-1 text-right">Monto</th>
+                                    <th class="py-1 text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-indigo-100">`;
+
+                infoGrupo.transacciones.sort((a,b) => b.id.localeCompare(a.id)).forEach(t => {
+                    let hora = t.fechaCompleta.includes(' ') ? t.fechaCompleta.split(' ')[1] : t.fechaCompleta;
+                    const deProds = t.items ? t.items.map(i => `${i.nombre} (x${i.cantidad}${i.esMayorista ? ' xMayor':''} S/ ${i.precioCobrado.toFixed(2)})`).join(', ') : 'Sin artículos';
+
+                    subTablaHTML += `
+                        <tr>
+                            <td class="py-2 font-mono text-slate-500 text-[11px]">${hora}</td>
+                            <td class="py-2 font-medium">${deProds}</td>
+                            <td class="py-2 text-center"><span class="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-bold">${t.metodoPago}</span></td>
+                            <td class="py-2 text-right font-bold text-slate-900">S/ ${t.total.toFixed(2)}</td>
+                            <td class="py-2 text-center"><button onclick="eliminarTransaccion(event, '${t.id}')" class="text-rose-500 hover:text-rose-700">🗑️</button></td>
+                        </tr>`;
+                });
+
+                subTablaHTML += `</tbody></table></div>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100 cursor-pointer font-medium" onclick="toggleDetalleDia('dia-${index}')">
+                        <td class="px-5 py-4 text-center font-bold text-indigo-600 text-base" id="flecha-dia-${index}">▶</td>
+                        <td class="px-5 py-4 text-slate-900 font-bold">DIA: ${fechaFormateada}</td>
+                        <td class="px-5 py-4 text-center text-slate-600 font-semibold">${infoGrupo.totalArticulos} unidades</td>
+                        <td class="px-5 py-4 text-right text-emerald-600 font-bold text-base">S/ ${infoGrupo.totalDinero.toFixed(2)}</td>
+                    </tr>
+                    <tr id="detalle-dia-${index}" class="hidden bg-slate-50/50">
+                        <td colspan="4" class="px-8 py-2">${subTablaHTML}</td>
+                    </tr>
+                `;
+            });
+
+            ajustarContadoresCard(totalMontoGlobal, transaccionesCount, efec, yape, tarjeta);
+        }
+
+        function ajustarContadoresCard(total, count, efec, yape, tarjeta) {
+            document.getElementById('rep-total-monto').innerText = `S/ ${total.toFixed(2)}`;
+            document.getElementById('rep-total-ventas').innerText = count;
+            document.getElementById('rep-efectivo').innerText = `S/ ${efec.toFixed(2)}`;
+            document.getElementById('rep-yape').innerText = `S/ ${yape.toFixed(2)}`;
+            document.getElementById('rep-tarjeta').innerText = `S/ ${tarjeta.toFixed(2)}`;
+        }
+
+        async function eliminarTransaccion(event, id) {
+            event.stopPropagation(); 
+            if(confirm('¿Eliminar registro de venta de la nube?')) {
+                const { error } = await _supabase.from('ventas').delete().eq('id', id);
+                await descargarTodoDeLaNube();
+                listarVentas();
+                cargarDashboard();
+            }
+        }
+
+        function descargarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const periodo = document.getElementById('filtro-periodo').value;
+            const desdeVal = document.getElementById('filtro-desde').value;
+            const hastaVal = document.getElementById('filtro-hasta').value;
+
+            const filtradas = ventas.filter(v => {
+                if (periodo === 'todos') return true;
+                if (!desdeVal || !hastaVal) return true;
+                return v.fechaFiltro >= desdeVal && v.fechaFiltro <= hastaVal;
+            });
+
+            if(filtradas.length === 0) { alert("No hay datos."); return; }
+
+            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(30, 41, 59);
+            doc.text("REPORTE OPERATIVO DE VENTAS", 14, 20);
+            
+            doc.setFontSize(10); doc.setFont("Helvetica", "normal"); doc.setTextColor(100, 116, 139);
+            doc.text(periodo === 'todos' ? "Periodo: Todo el Historial" : `Periodo: Desde ${desdeVal} Hasta ${hastaVal}`, 14, 26);
+
+            const gruposPDF = {}; let recaudacionTotalGlobal = 0;
+            filtradas.forEach(v => {
+                recaudacionTotalGlobal += v.total; const fDía = v.fechaFiltro;
+                if (!gruposPDF[fDía]) gruposPDF[fDía] = { transacciones: [], totalDia: 0 };
+                gruposPDF[fDía].transacciones.push(v); gruposPDF[fDía].totalDia += v.total;
+            });
+
+            const diasParaPDF = Object.keys(gruposPDF).sort((a, b) => b.localeCompare(a));
+            let posY = 33; 
+
+            diasParaPDF.forEach((fechaStr, index) => {
+                const infoGrupo = gruposPDF[fechaStr];
+                const parts = fechaStr.split('-');
+                const fechaTituloEnCuadro = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fechaStr;
+
+                if (posY > 240) { doc.addPage(); posY = 20; }
+
+                doc.setFillColor(238, 242, 255); doc.rect(14, posY, 182, 7, "F");
+                doc.setFont("Helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(67, 56, 202);
+                doc.text(`DIA: ${fechaTituloEnCuadro}`, 16, posY + 5);
+
+                const filasTablaDia = [];
+                infoGrupo.transacciones.sort((a,b) => b.id.localeCompare(a.id)).forEach(t => {
+                    let hora = t.fechaCompleta.includes(' ') ? t.fechaCompleta.split(' ')[1] : t.fechaCompleta;
+                    const listadoArticulos = t.items ? t.items.map(i => `${i.nombre} (x${i.cantidad}${i.esMayorista ? ' xMayor':''} S/ ${i.precioCobrado.toFixed(2)})`).join('\n') : 'Sin artículos';
+                    filasTablaDia.push([hora, listadoArticulos, t.metodoPago, `S/ ${t.total.toFixed(2)}`]);
+                });
+
+                doc.autoTable({
+                    startY: posY + 9,
+                    head: [['Hora', 'Articulos Desglosados', 'Metodo Pago', 'Monto']],
+                    body: filasTablaDia,
+                    theme: 'striped',
+                    headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
+                    styles: { fontSize: 9, cellPadding: 2.5 },
+                    columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 102 }, 2: { cellWidth: 32, halign: 'center' }, 3: { cellWidth: 28, halign: 'right' } }
+                });
+
+                posY = doc.lastAutoTable.finalY + 4;
+                doc.setFont("Helvetica", "bold"); doc.text(`Total del dia: S/ ${infoGrupo.totalDia.toFixed(2)}`, 150, posY, { align: 'right' });
+                posY += 8; 
+            });
+
+            posY += 4; doc.setDrawColor(226, 232, 240); doc.line(14, posY, 196, posY);
+            posY += 8; doc.setFontSize(13); doc.setTextColor(5, 150, 105);
+            doc.text(`TOTAL GENERAL RECAUDADO: S/ ${recaudacionTotalGlobal.toFixed(2)}`, 196, posY, { align: 'right' });
+
+            doc.save(`Reporte_Ventas_Nube.pdf`);
+        }
+
+        // --- DASHBOARD ---
+        function cargarDashboard() {
+            document.getElementById('dash-productos-count').innerText = productos.length;
+            const criticos = productos.filter(p => p.stock <= p.minimo);
+            document.getElementById('dash-alertas-count').innerText = criticos.length;
+
+            const panel = document.getElementById('panel-alertas');
+            const lista = document.getElementById('lista-alertas');
+            lista.innerHTML = '';
+
+            if(criticos.length > 0) {
+                panel.classList.remove('hidden');
+                criticos.forEach(p => {
+                    lista.innerHTML += `<li><strong>${p.nombre}</strong> - Stock actual: ${p.stock} (Mínimo: ${p.minimo})</li>`;
+                });
+            } else { panel.classList.add('hidden'); }
+
+            const hoyStr = obtenerFechaLocalPeru();
+            const vHoy = ventas.filter(v => v.fechaFiltro === hoyStr);
+
+            document.getElementById('dash-ingresos').innerText = `S/ ${vHoy.reduce((s, v) => s + v.total, 0).toFixed(2)}`;
+            document.getElementById('dash-ventas-count').innerText = vHoy.length;
+        }
+
+        window.onload = function() {
+            document.getElementById('filtro-periodo').value = 'todos';
+            document.getElementById('filtro-desde').disabled = true;
+            document.getElementById('filtro-hasta').disabled = true;
+            // Verificar si hay una sesión guardada en la memoria para no loguearse a cada rato
+            verificarSesionActiva();
+        };
+    </script>
+</body>
+</html>
