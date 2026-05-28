@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestión Comercial - Mi Tienda Nube</title>
+    <title>AE IMPORT</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
@@ -19,7 +19,7 @@
         <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full space-y-6">
             <div class="text-center space-y-2">
                 <span class="text-4xl">☁️</span>
-                <h2 class="text-2xl font-black text-slate-800 tracking-tight">ControlTienda Nube</h2>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">AE IMPORT</h2>
                 <p class="text-sm text-slate-500">Ingresa tus credenciales autorizadas</p>
             </div>
             <div id="login-error" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-2.5 rounded-lg">
@@ -114,7 +114,7 @@
 
             <div id="productos" class="tab-content space-y-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-2">
-                    <h1 class="text-2xl font-bold text-slate-900">Gestión de Inventario (Nube)</h1>
+                    <h1 class="text-2xl font-bold text-slate-900">Gestión de Inventario</h1>
                     <input type="text" id="buscar-producto-inv" oninput="listarProductosInventario()" placeholder="🔍 Buscar producto por nombre..." class="px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-80 bg-white">
                 </div>
 
@@ -122,7 +122,7 @@
                     <label for="filtro-categoria" class="text-sm font-bold text-slate-700 flex items-center gap-1">👁️ Visualizar categoría:</label>
                     <select id="filtro-categoria" onchange="listarProductosInventario()" class="px-3 py-1.5 border rounded-lg bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer min-w-[200px]">
                         <option value="Todos">-- Ver Todo el Inventario --</option>
-                        <option value="Sin categoría">Sin categoría (Productos antiguos)</option>
+                        <option value="Sin categoría">Sin categoría</option>
                         <option value="Maquillaje">Maquillaje</option>
                         <option value="Tecnología">Tecnología</option>
                         <option value="Cocina">Cocina</option>
@@ -206,7 +206,7 @@
             </div>
 
             <div id="ventas" class="tab-content space-y-6">
-                <h1 class="text-2xl font-bold text-slate-900 border-b pb-2">Módulo de Ventas (Punto de Venta)</h1>
+                <h1 class="text-2xl font-bold text-slate-900 border-b pb-2">Módulo de Ventas</h1>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 h-fit">
                         <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">🔍 Buscar Artículo</h3>
@@ -270,7 +270,7 @@
 
             <div id="reportes" class="tab-content space-y-6">
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between border-b pb-2 gap-4">
-                    <h1 class="text-2xl font-bold text-slate-900">Historial Agrupado por Fechas (Nube)</h1>
+                    <h1 class="text-2xl font-bold text-slate-900">Historial Agrupado por Fechas</h1>
                     <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-sm">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filtrar por Período</label>
