@@ -130,7 +130,7 @@ function listarVentas() {
             // Construir el desglose interno de todas las ventas que ocurrieron en este día completo
             let tablaDesgloseInterno = `
                 <div class="space-y-3 p-2">
-                    <p class="font-black text-indigo-900 uppercase tracking-wider text-xs">📋 TRANSACCIONES DEL DÍA (${fechaFormateada}):</p>
+                    <p class="font-black text-indigo-900 uppercase tracking-wider text-xs">📋 TRANSACCIONES DEL DÍA :</p>
                     <table class="w-full text-left border-collapse bg-white rounded-lg overflow-hidden shadow-sm">
                         <thead>
                             <tr class="bg-indigo-600 text-white text-[11px] font-bold uppercase">
