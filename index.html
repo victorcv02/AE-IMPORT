@@ -132,6 +132,31 @@
                                 <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre del Producto</label>
                                 <input type="text" id="prod-nombre" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
                             </div>
+                            <div class="campo-formulario" style="margin-bottom: 15px;">
+    <label for="reg-categoria" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Categoría:</label>
+    <select id="reg-categoria" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; background-color: #fff;">
+        <option value="Sin categoría">-- Seleccionar Categoría --</option>
+        <option value="Maquillaje">Maquillaje</option>
+        <option value="Tecnología">Tecnología</option>
+        <option value="Cocina">Cocina</option>
+        <option value="Útiles">Útiles</option>
+        <option value="Limpieza">Limpieza</option>
+    </select>
+</div>
+
+
+<div class="filtro-categoria-container" style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; display: flex; align-items: center;">
+    <label for="filtro-categoria" style="font-weight: bold; margin-right: 12px; color: #495057;">🔍 Filtrar por categoría:</label>
+    <select id="filtro-categoria" onchange="filtrarProductosPorCategoria()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 14px; background-color: #fff; cursor: pointer;">
+        <option value="Todos">-- Ver Todo el Inventario --</option>
+        <option value="Sin categoría">Sin categoría (Productos antiguos)</option>
+        <option value="Maquillaje">Maquillaje</option>
+        <option value="Tecnología">Tecnología</option>
+        <option value="Cocina">Cocina</option>
+        <option value="Útiles">Útiles</option>
+        <option value="Limpieza">Limpieza</option>
+    </select>
+</div>
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Precio Normal (S/)</label>
