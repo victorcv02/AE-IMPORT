@@ -39,6 +39,7 @@ function actualizarFiltrosFechas() {
     listarVentas();
 }
 
+// --- FUNCIÓN ADAPTATIVA: AGRUPA POR DÍA O MUESTRA INDIVIDUAL SEGÚN EL FILTRO ---
 function listarVentas() {
     const tbody = document.getElementById('tabla-historial');
     tbody.innerHTML = '';
@@ -47,53 +48,141 @@ function listarVentas() {
     const desde = document.getElementById('filtro-desde').value;
     const hasta = document.getElementById('filtro-hasta').value;
 
-    let filtradas = ventas;
+    let filtradas = [...ventas];
 
     if(periodo !== 'todos' && desde && hasta) {
         filtradas = ventas.filter(v => v.fechaFiltro >= desde && v.fechaFiltro <= hasta);
     }
 
-    // Ordenar de más recientes a más antiguas
-    filtradas.sort((a,b) => b.id.localeCompare(a.id));
-
+    // Calcular montos globales para los cuadros superiores de la pantalla
     let sumaTotal = 0;
     let sumaEfectivo = 0;
     let sumaYape = 0;
     let sumaTarjeta = 0;
-
-    if(filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center p-5 text-slate-400">No hay ventas registradas en el rango seleccionado.</td></tr>`;
-        inyectarMontosReporte(0, 0, 0, 0, 0);
-        return;
-    }
 
     filtradas.forEach(v => {
         sumaTotal += v.total;
         if(v.metodoPago === 'Efectivo') sumaEfectivo += v.total;
         else if(v.metodoPago === 'Yape/Plin') sumaYape += v.total;
         else sumaTarjeta += v.total;
-
-        let detalleItems = v.items.map(i => `• ${i.nombre} (x${i.cantidad})`).join('<br>');
-
-        tbody.innerHTML += `
-            <tr class="border-b hover:bg-slate-50">
-                <td class="p-3 text-center">
-                    <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded text-xs">🔎</button>
-                </td>
-                <td class="px-5 py-3 font-medium text-slate-700">${v.fechaCompleta} <span class="ml-2 text-xs bg-indigo-50 text-indigo-600 font-semibold px-2 py-0.5 rounded border border-indigo-100">${v.metodoPago}</span></td>
-                <td class="px-5 py-3 text-center text-slate-600 font-medium">${v.items.reduce((s,i)=> s + i.cantidad, 0)} u.</td>
-                <td class="px-5 py-3 text-right font-black text-slate-800">S/ ${v.total.toFixed(2)}</td>
-            </tr>
-            <tr class="hidden bg-indigo-50/30">
-                <td colspan="4" class="px-12 py-3 text-xs text-slate-600 space-y-1">
-                    <p class="font-bold text-indigo-800 mb-1 uppercase tracking-wider">📦 Desglose de Productos Comprados:</p>
-                    ${detalleItems}
-                </td>
-            </tr>
-        `;
     });
 
     inyectarMontosReporte(sumaTotal, filtradas.length, sumaEfectivo, sumaYape, sumaTarjeta);
+
+    if(filtradas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center p-5 text-slate-400">No hay ventas registradas en el rango seleccionado.</td></tr>`;
+        return;
+    }
+
+    // Determinar si debemos AGRUPAR por día completo (rangos amplios) o mostrar DETALLE individual (un solo día)
+    const esUnSoloDia = (periodo === 'hoy') || (periodo === 'personalizado' && desde === hasta);
+
+    if (esUnSoloDia) {
+        // MODO DETALLE: Se muestra cada ticket por separado con su hora exacta
+        filtradas.sort((a,b) => b.id.localeCompare(a.id)); // Recientes primero
+
+        filtradas.forEach(v => {
+            let detalleItems = v.items.map(i => `• ${i.nombre} (x${i.cantidad}) - S/ ${(i.precioCobrado * i.cantidad).toFixed(2)}`).join('<br>');
+            const hora = v.fechaCompleta.includes(', ') ? v.fechaCompleta.split(', ')[1] : v.fechaCompleta;
+
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-3 text-center">
+                        <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded text-xs hover:bg-indigo-100 transition">🔎 Ver ítems</button>
+                    </td>
+                    <td class="px-5 py-3 font-medium text-slate-700">Hora: ${hora} <span class="ml-2 text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded border">${v.metodoPago}</span></td>
+                    <td class="px-5 py-3 text-center text-slate-600 font-medium">${v.items.reduce((s,i)=> s + i.cantidad, 0)} u.</td>
+                    <td class="px-5 py-3 text-right font-black text-slate-800">S/ ${v.total.toFixed(2)}</td>
+                </tr>
+                <tr class="hidden bg-slate-50/50">
+                    <td colspan="4" class="px-12 py-3 text-xs text-slate-600 space-y-1 border-b">
+                        <p class="font-bold text-slate-700 mb-1 uppercase tracking-wider">📦 Artículos del Ticket:</p>
+                        ${detalleItems}
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        // MODO RESUMEN: Agrupar todas las ventas que correspondan al mismo día
+        const diasAgrupados = {};
+        
+        filtradas.forEach(v => {
+            if (!diasAgrupados[v.fechaFiltro]) {
+                diasAgrupados[v.fechaFiltro] = {
+                    totalDinero: 0,
+                    totalProductos: 0,
+                    tickets: []
+                };
+            }
+            diasAgrupados[v.fechaFiltro].totalDinero += v.total;
+            diasAgrupados[v.fechaFiltro].totalProductos += v.items.reduce((s,i)=> s + i.cantidad, 0);
+            diasAgrupados[v.fechaFiltro].tickets.push(v);
+        });
+
+        // Ordenar los días del más reciente al más antiguo
+        const diasOrdenados = Object.keys(diasAgrupados).sort((a,b) => b.localeCompare(a));
+
+        diasOrdenados.forEach(fechaKey => {
+            const infoDia = diasAgrupados[fechaKey];
+            const partes = fechaKey.split('-');
+            const fechaFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+
+            // Construir el desglose interno de todas las ventas que ocurrieron en este día completo
+            let tablaDesgloseInterno = `
+                <div class="space-y-3 p-2">
+                    <p class="font-black text-indigo-900 uppercase tracking-wider text-xs">📋 REPORTE DE TRANSACCIONES DEL DÍA (${fechaFormateada}):</p>
+                    <table class="w-full text-left border-collapse bg-white rounded-lg overflow-hidden shadow-sm">
+                        <thead>
+                            <tr class="bg-indigo-600 text-white text-[11px] font-bold uppercase">
+                                <th class="p-2">Hora</th>
+                                <th class="p-2">Pago</th>
+                                <th class="p-2">Productos Detallados</th>
+                                <th class="p-2 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-xs text-slate-600 divide-y divide-slate-100">
+            `;
+
+            // Ordenar los tickets de ese día por hora
+            infoDia.tickets.sort((a,b) => b.id.localeCompare(a.id));
+
+            infoDia.tickets.forEach(tk => {
+                const horaTk = tk.fechaCompleta.includes(', ') ? tk.fechaCompleta.split(', ')[1] : tk.fechaCompleta;
+                let itemsListados = tk.items.map(i => `${i.nombre} (x${i.cantidad})`).join(', ');
+                tablaDesgloseInterno += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2 font-medium">${horaTk}</td>
+                        <td class="p-2"><span class="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-semibold">${tk.metodoPago}</span></td>
+                        <td class="p-2 text-slate-500">${itemsListados}</td>
+                        <td class="p-2 text-right font-bold text-slate-700">S/ ${tk.total.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            tablaDesgloseInterno += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // Agregar la fila principal del día a la tabla principal de la pantalla
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-indigo-50/20 transition-colors">
+                    <td class="p-3 text-center">
+                        <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-indigo-600 text-white font-bold px-3 py-1 rounded text-xs hover:bg-indigo-800 transition">🔎 Ver Detalles del Día</button>
+                    </td>
+                    <td class="px-5 py-3 font-bold text-slate-800">📆 Total del día: ${fechaFormateada}</td>
+                    <td class="px-5 py-3 text-center text-slate-600 font-semibold">${infoDia.totalProductos} u.</td>
+                    <td class="px-5 py-3 text-right font-black text-indigo-600 text-base">S/ ${infoDia.totalDinero.toFixed(2)}</td>
+                </tr>
+                <tr class="hidden bg-indigo-50/30 border-b">
+                    <td colspan="4" class="px-6 py-4">
+                        ${tablaDesgloseInterno}
+                    </td>
+                </tr>
+            `;
+        });
+    }
 }
 
 function inyectarMontosReporte(total, cantidad, efec, yape, tarj) {
@@ -104,7 +193,7 @@ function inyectarMontosReporte(total, cantidad, efec, yape, tarj) {
     document.getElementById('rep-tarjeta').innerText = `S/ ${tarj.toFixed(2)}`;
 }
 
-// --- FUNCIÓN PDF CORREGIDA Y LIMPIA SIN EMOJIS ---
+// --- DESCARGA DE PDF LIMPIO Y AGRUPADO ---
 function descargarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -118,10 +207,8 @@ function descargarPDF() {
         filtradas = ventas.filter(v => v.fechaFiltro >= desde && v.fechaFiltro <= hasta);
     }
     
-    // Ordenar cronológicamente (antiguo a reciente)
     filtradas.sort((a,b) => a.fechaFiltro.localeCompare(b.fechaFiltro));
 
-    // Cabecera Principal del PDF (Ajustada a 32 de alto para mayor minimalismo)
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, 220, 32, 'F');
     
@@ -130,7 +217,6 @@ function descargarPDF() {
     doc.setFontSize(20);
     doc.text("REPORTE HISTORIAL DE VENTAS", 14, 20);
 
-    // Resumen Global del Periodo
     let totalMontoGlobal = filtradas.reduce((s,v)=> s + v.total, 0);
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(10);
@@ -146,7 +232,6 @@ function descargarPDF() {
         return;
     }
 
-    // --- AGRUPAR VENTAS POR DÍA ---
     const ventasPorDia = {};
     filtradas.forEach(v => {
         if (!ventasPorDia[v.fechaFiltro]) {
@@ -157,7 +242,6 @@ function descargarPDF() {
 
     let currentY = 54;
 
-    // Recorrer día por día
     Object.keys(ventasPorDia).forEach(fechaKey => {
         const ventasDelDia = ventasPorDia[fechaKey];
         let totalDelDia = 0;
@@ -167,7 +251,6 @@ function descargarPDF() {
             currentY = 20;
         }
 
-        // Encabezado del día (Sin emojis raros ni bugs)
         doc.setFillColor(241, 245, 249);
         doc.rect(14, currentY, 182, 7, 'F');
         doc.setTextColor(51, 65, 85);
@@ -180,7 +263,6 @@ function descargarPDF() {
         
         currentY += 10;
 
-        // Construir el desglose de filas para la tabla de este día
         let filasTablaDia = [];
         ventasDelDia.forEach(v => {
             totalDelDia += v.total;
@@ -195,7 +277,6 @@ function descargarPDF() {
             ]);
         });
 
-        // Dibujar la tabla del día
         doc.autoTable({
             startY: currentY,
             head: [['Hora / Registro', 'Método Pago', 'Artículos Comprados', 'Monto']],
@@ -214,7 +295,6 @@ function descargarPDF() {
 
         currentY = doc.lastAutoTable.finalY + 5;
 
-        // Imprimir el total acumulado de ese día (Limpio y directo tal cual pediste)
         doc.setTextColor(16, 185, 129); 
         doc.setFont("normal", "bold");
         doc.setFontSize(10);
@@ -226,6 +306,5 @@ function descargarPDF() {
         currentY += 6;
     });
 
-    // Guardar el archivo PDF definitivo
     doc.save(`Reporte_Ventas_Agrupado_${obtenerFechaLocalPeru()}.pdf`);
 }
