@@ -104,7 +104,7 @@ function inyectarMontosReporte(total, cantidad, efec, yape, tarj) {
     document.getElementById('rep-tarjeta').innerText = `S/ ${tarj.toFixed(2)}`;
 }
 
-// --- NUEVA FUNCIÓN MEJORADA: PDF AGRUPADO POR FECHAS EXACTAS ---
+// --- FUNCIÓN PDF CORREGIDA Y LIMPIA SIN EMOJIS ---
 function descargarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -118,34 +118,30 @@ function descargarPDF() {
         filtradas = ventas.filter(v => v.fechaFiltro >= desde && v.fechaFiltro <= hasta);
     }
     
-    // Ordenar cronológicamente (antiguo a reciente) para armar los días consecutivamente
+    // Ordenar cronológicamente (antiguo a reciente)
     filtradas.sort((a,b) => a.fechaFiltro.localeCompare(b.fechaFiltro));
 
-    // Cabecera Principal del PDF
+    // Cabecera Principal del PDF (Ajustada a 32 de alto para mayor minimalismo)
     doc.setFillColor(30, 41, 59);
-    doc.rect(0, 0, 220, 38, 'F');
+    doc.rect(0, 0, 220, 32, 'F');
     
     doc.setTextColor(255, 255, 255);
     doc.setFont("headline", "bold");
     doc.setFontSize(20);
     doc.text("REPORTE HISTORIAL DE VENTAS", 14, 20);
-    
-    doc.setFontSize(9);
-    doc.setFont("normal");
-    doc.text(`Filtro: ${periodo} [Período del: ${desde || 'El Inicio'} hasta: ${hasta || 'Hoy'}]`, 14, 29);
 
     // Resumen Global del Periodo
     let totalMontoGlobal = filtradas.reduce((s,v)=> s + v.total, 0);
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(10);
     doc.setFont("bold");
-    doc.text(`Total Transacciones en el Rango: ${filtradas.length}`, 14, 48);
-    doc.text(`Recaudación Total General: S/ ${totalMontoGlobal.toFixed(2)}`, 115, 48);
+    doc.text(`Total Transacciones en el Rango: ${filtradas.length}`, 14, 44);
+    doc.text(`Recaudación Total General: S/ ${totalMontoGlobal.toFixed(2)}`, 115, 44);
     doc.setDrawColor(200, 200, 200);
-    doc.line(14, 52, 196, 52);
+    doc.line(14, 48, 196, 48);
 
     if(filtradas.length === 0) {
-        doc.text("No se encontraron transacciones registradas.", 14, 62);
+        doc.text("No se encontraron transacciones registradas.", 14, 58);
         doc.save(`Reporte_Ventas_${obtenerFechaLocalPeru()}.pdf`);
         return;
     }
@@ -153,37 +149,34 @@ function descargarPDF() {
     // --- AGRUPAR VENTAS POR DÍA ---
     const ventasPorDia = {};
     filtradas.forEach(v => {
-        // Usamos la fecha limpia (AAAA-MM-DD) para agrupar las ventas
         if (!ventasPorDia[v.fechaFiltro]) {
             ventasPorDia[v.fechaFiltro] = [];
         }
         ventasPorDia[v.fechaFiltro].push(v);
     });
 
-    let currentY = 58;
+    let currentY = 54;
 
-    // Recorrer día por día para armar tablas separadas
+    // Recorrer día por día
     Object.keys(ventasPorDia).forEach(fechaKey => {
         const ventasDelDia = ventasPorDia[fechaKey];
         let totalDelDia = 0;
 
-        // Validar salto de página si el espacio disponible es muy corto
         if (currentY > 240) {
             doc.addPage();
             currentY = 20;
         }
 
-        // Formatear el encabezado del día (Ej: FECHA: 2026-05-28)
+        // Encabezado del día (Sin emojis raros ni bugs)
         doc.setFillColor(241, 245, 249);
         doc.rect(14, currentY, 182, 7, 'F');
         doc.setTextColor(51, 65, 85);
         doc.setFont("normal", "bold");
         doc.setFontSize(10);
         
-        // Convertir la fecha a un texto más amigable
         const partesFecha = fechaKey.split('-');
         const fechaFormateada = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
-        doc.text(`📅 VENTAS DEL DÍA: ${fechaFormateada}`, 18, currentY + 5);
+        doc.text(`VENTAS DEL DIA: ${fechaFormateada}`, 18, currentY + 5);
         
         currentY += 10;
 
@@ -192,8 +185,6 @@ function descargarPDF() {
         ventasDelDia.forEach(v => {
             totalDelDia += v.total;
             let detalleNombres = v.items.map(i => `${i.nombre} (x${i.cantidad})`).join(', ');
-            
-            // Extraer solo la hora de la fecha completa si se desea, o dejarla completa
             const hora = v.fechaCompleta.includes(', ') ? v.fechaCompleta.split(', ')[1] : v.fechaCompleta;
 
             filasTablaDia.push([
@@ -204,7 +195,7 @@ function descargarPDF() {
             ]);
         });
 
-        // Dibujar la tabla del día usando AutoTable
+        // Dibujar la tabla del día
         doc.autoTable({
             startY: currentY,
             head: [['Hora / Registro', 'Método Pago', 'Artículos Comprados', 'Monto']],
@@ -221,16 +212,14 @@ function descargarPDF() {
             margin: { left: 14, right: 14 }
         });
 
-        // Actualizar la posición de la Y después de la tabla
-        currentY = doc.lastAutoTable.finalY + 4;
+        currentY = doc.lastAutoTable.finalY + 5;
 
-        // Imprimir el total acumulado de ese día específico
-        doc.setTextColor(16, 185, 129); // Color esmeralda profesional
+        // Imprimir el total acumulado de ese día (Limpio y directo tal cual pediste)
+        doc.setTextColor(16, 185, 129); 
         doc.setFont("normal", "bold");
         doc.setFontSize(10);
-        doc.text(`Total del día (${fechaFormateada}): S/ ${totalDelDia.toFixed(2)}`, 130, currentY);
+        doc.text(`Total del día: S/ ${totalDelDia.toFixed(2)}`, 140, currentY);
         
-        // Una línea divisoria sutil antes de pasar al siguiente día
         currentY += 4;
         doc.setDrawColor(226, 232, 240);
         doc.line(14, currentY, 196, currentY);
