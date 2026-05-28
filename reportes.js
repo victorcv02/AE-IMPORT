@@ -88,7 +88,7 @@ function listarVentas() {
             tbody.innerHTML += `
                 <tr class="border-b hover:bg-slate-50">
                     <td class="p-3 text-center">
-                        <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded text-xs hover:bg-indigo-100 transition">🔎 Ver ítems</button>
+                        <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded text-xs hover:bg-indigo-100 transition">🔎 Ver </button>
                     </td>
                     <td class="px-5 py-3 font-medium text-slate-700">Hora: ${hora} <span class="ml-2 text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded border">${v.metodoPago}</span></td>
                     <td class="px-5 py-3 text-center text-slate-600 font-medium">${v.items.reduce((s,i)=> s + i.cantidad, 0)} u.</td>
@@ -169,7 +169,7 @@ function listarVentas() {
             tbody.innerHTML += `
                 <tr class="border-b hover:bg-indigo-50/20 transition-colors">
                     <td class="p-3 text-center">
-                        <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-indigo-600 text-white font-bold px-3 py-1 rounded text-xs hover:bg-indigo-800 transition">🔎 Ver Detalles del Día</button>
+                        <button onclick="this.parentElement.parentElement.nextElementSibling.classList.toggle('hidden')" class="bg-indigo-600 text-white font-bold px-3 py-1 rounded text-xs hover:bg-indigo-800 transition">🔎 Ver </button>
                     </td>
                     <td class="px-5 py-3 font-bold text-slate-800">📆 Total del día: ${fechaFormateada}</td>
                     <td class="px-5 py-3 text-center text-slate-600 font-semibold">${infoDia.totalProductos} u.</td>
